@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Überprüfen, ob jq installiert ist
+# Check if jq is installed
 if ! command -v jq &> /dev/null; then
   echo "Fehler: jq ist nicht installiert. Bitte jq installieren."
   exit 1
 fi
 
-# Schritt 1: Hole Session-ID
+# Step 1: Get session ID
 echo "Hole Session-ID..."
 sessionResponse=$(curl -s "https://support.euserv.com/?method=json")
 sess_id=$(echo "$sessionResponse" | jq -r '.result.sess_id.value')
@@ -16,20 +16,20 @@ if [ -z "$sess_id" ]; then
 fi
 echo "Session-ID: $sess_id"
 
-# Schritt 2: Hole Domainliste
-# Hier wird angenommen, dass die Domainliste als Array unter .result.domains zurückgegeben wird, mit den Feldern dom_id und dom_name
+# Step 2: Get the domain list
+# Assumes that the domain list is returned as an array under .result.domains with the fields dom_id and dom_name
 
 echo "Hole Domainliste..."
 domainResponse=$(curl -s "https://support.euserv.com/?subaction=show_kc2_domain_dns&method=json&sess_id=${sess_id}")
 
-# Prüfe, ob die Antwort einen Erfolg anzeigt
+# Check if the response indicates a successful operation
 message=$(echo "$domainResponse" | jq -r '.message')
 if [ "$message" != "success" ]; then
     echo "Fehler beim Abrufen der Domainliste: $message"
     exit 1
 fi
 
-# Extrahiere die Liste der Domains (angenommen, das JSON enthält ein Array unter .result.domains mit den Feldern dom_id und dom_name)
+# Extract the list of domains (assuming the JSON contains an array under .result.domains with the fields dom_id and dom_name)
 domains=$(echo "$domainResponse" | jq -r '.result.domains[] | "\(.dom_id) \(.dom_name)"')
 domainCount=$(echo "$domainResponse" | jq '.result.domains | length')
 
@@ -38,7 +38,7 @@ if [ "$domainCount" -eq 0 ]; then
     exit 1
 fi
 
-# Schritt 3: Zeige die Domains und lasse den Benutzer auswählen
+# Step 3: Display the domains and let the user choose one
 echo "Verfügbare Domains:"
 i=1
 declare -A domain_map
@@ -62,11 +62,11 @@ chosen_dom_name=$(echo "$chosen_entry" | cut -d ';' -f 2)
 
 echo "Ausgewählte Domain: $chosen_dom_name (dom_id: $chosen_dom_id)"
 
-# Schritt 4: Benutzerabfrage für NS-Einträge
+# Step 4: Ask the user for NS entries
 read -p "Bitte NS1 eingeben: " ns1
 read -p "Bitte NS2 eingeben: " ns2
 
-# Schritt 5: Setze die Nameserver über die API
+# Step 5: Set the nameservers using the API
 echo "Setze Nameserver..."
 setResponse=$(curl -s "https://support.euserv.com/?subaction=kc2_domain_nameserver_set&method=json&sess_id=${sess_id}&dom_id=${chosen_dom_id}&dom_nserver1=${ns1}&dom_nserver2=${ns2}")
 
